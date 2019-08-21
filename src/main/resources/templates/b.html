@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <title>Title</title>
+    <link href="/css/easyui/themes/default/easyui.css">
+    <link href="/css/easyui/themes/icon.css">
+    <link href="/css/easyui/demo/demo.css">
+    <script src="/css/easyui/jquery.min.js"></script>
+    <script src="/css/easyui/jquery.easyui.min.js"></script>
+    <script src="/js/jeasyui.extensions.datagrid.getDom.js"></script>
+    <script src="/js/jeasyui.extensions.datagrid.getColumnInfo.js"></script>
+    <script src="/js/jeasyui.extensions.datagrid.getRowData.js"></script>
+    <script src="/js/jeasyui.extensions.datagrid.tooltip.js"></script>
+</head>
+<body>
+<!--<h2>Custom Tooltip Style</h2>-->
+<!--<p>This sample shows how to change the tooltip style.</p>-->
+<!--<div style="margin: 0px 0;"></div>-->
+<!--<div style="padding:10px 200px">-->
+<!--<div id="pp1" class="easyui-panel" style="width:100px;padding:5px">Hover Me</div>-->
+<!--</div>-->
+<div style="margin-left: 800px">
+    <p onmousemove="showPannel('你好 ')" id="pp2" class="easyui-panel" style="width:100px;padding:5px">Hover Me</p>
+</div>
+<script>
+
+    function formatCellTooltip(value){
+        return "<span class='note' title='" + value + "'>" + value + "</span>";
+        $(".note").css('backgroundColor',"pink");
+        var index = $('#datagrid').datagrid('getRowIndex',row);
+        console.log(index)
+    }
+</script>
+
+
+<!--<a href="#" title="你想显示的内容写在title属性里就可以了，很简单的." class="easyui-tooltip">鼠标移到我上面来</a> 显示提示内容.-->
+<h2>Basic DataGrid</h2>
+<p>The DataGrid is created from markup, no JavaScript code needed.</p>
+<div style="margin:20px 0;"></div>
+
+<table id="tt" class="easyui-datagrid" title="Basic DataGrid" style="width:700px;height:250px"
+       data-options="singleSelect:true,rowTooltip: false,collapsible:true,url:'/datagrid_data1.json',method:'get'">
+    <thead>
+    <tr>
+        <th data-options="field:'itemid',width:80">Item ID</th>
+        <th data-options="field:'productid',width:100">Product</th>
+        <th data-options="field:'listprice',width:80,align:'right'">List Price</th>
+        <th data-options="field:'unitcost',width:80,align:'right'">Unit Cost</th>
+        <th data-options="field:'attr1',width:250,formatter:formatCellTooltip,tooltip:'true'">Attribute</th>
+        <th data-options="field:'status',width:60,align:'center',tooltip:'true'">Status</th>
+    </tr>
+    </thead>
+</table>
+</body>
+</html>

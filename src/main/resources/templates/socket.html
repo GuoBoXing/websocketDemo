@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script>
+        var socket;
+        if (typeof WebSocket == "undefined") {
+            console.log("您的浏览器不支持websocket")
+        } else {
+            console.log("您的浏览器支持websocket")
+            // 实现化Websocket对象，指定要连接打的服务器的端口和地址，建立连接
+            // 等同于websocket = new WebSoket（"ws://localhost:8083/checkcentersys/websocket/20"）
+//            socket = new WebSocket(("${basePath}socket/${cid}".replace("http","ws")));
+            socket = new WebSocket(("ws://localhost:8083/websoket/20"));
+            // 打开事件
+            socket.onopen = function () {
+                console.log("socket 已经打开");
+            };
+
+            // 获得消息事件
+            socket.onmessage = function (msg) {
+                console.log(msg.data);
+                // 发现消息进入   开始处理前端触发逻辑
+            };
+
+            // 关闭事件
+            socket.onclose = function () {
+                console.log("socket已经关闭");
+            };
+            // 发生了错误
+            socket.onerror = function (event) {
+                alert("socketf阿生错误");
+                // 此时可以尝试刷新页面
+            };
+        }
+
+    </script>
+</head>
+<body>
+
+</body>
+</html>

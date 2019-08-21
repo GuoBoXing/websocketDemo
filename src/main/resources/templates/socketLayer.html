@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link href="/js/layer.css" rel="stylesheet">
+    <script src="/js/jquery.js"></script>
+    <script src="/js/layer.js"></script>
+    <script>
+        // WebSocket
+        var websocket = null;var message_arr=[];var isFire=true;var duration = 0;
+        //判断当前浏览器是否支持WebSocket
+        if ('WebSocket' in window) {
+            //websocket = new WebSocket("ws://218.77.104.15:8888"); //ws://192.168.8.56:1234
+            websocket = new WebSocket("ws://127.0.0.1:12345/ws?uid=666&gid=777"); //ws://192.168.8.56:1234
+        } else {
+            alert('当前浏览器不支持websocket，请使用最新的浏览器');
+        }
+
+        //连接发生错误的回调方法
+        websocket.onerror = function() {
+            setMessageInnerHTML("WebSocket连接发生错误");
+        };
+
+        //连接成功建立的回调方法
+        websocket.onopen = function() {
+            var uid={"tel":sessionStorage.getItem('uname'),"client":"1"};
+            websocket.send(JSON.stringify(uid));
+        };
+
+        //接收到消息的回调方法
+        websocket.onmessage = function(event) {
+            console.log('接收到消息的回调方法');
+            console.log(event);
+            //聊天
+            JSON.parse(event.data).code=='s_ok'?console.log("连接成功"):'';
+            //发生火灾的时候
+            if(JSON.parse(event.data).code!='s_ok'){
+                setMessageInnerHTML(JSON.parse(event.data));
+            }
+        };
+        //连接关闭的回调方法
+        websocket.onclose = function() {
+        };
+        //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+        window.onbeforeunload = function() {
+            closeWebSocket();
+        };
+        //将消息显示在网页上
+        function setMessageInnerHTML(data) {
+            if (data.type=="fire") {
+                layer.confirm("<div style='padding:15px;font-weight: bold;'>" + data.happen_time + " " + data.region_name + "发生火灾，请立即派人前往灭火！</div>", {
+                    btn: ['查看详情','取消'],skin: 'layui-layer-molv' ,closeBtn: 0,anim: 4,btnAlign: 'c',title:'警告'
+                }, function(){
+                    localStorage.setItem("index_xq",0);
+                    localStorage.setItem("fireId_xq",data.percent);
+                    $("#index_main_context").load("lqz_fire_details.html");
+                    $("#index_titel").html("火情上报详情");
+                    layer.closeAll();
+                }, function(){
+                });
+                var myVideo = document.getElementById("audio");
+                myVideo.play();
+            }else if (data.type=="mail") {
+                tz();
+            }
+            if(data.type=='chat'){
+                message(data.msg_from_uid,data.msg_from_name,data.msg_from_tel);
+                layer.title('与'+data.msg_from_name+'聊天中',0);
+                if (data.msg_type=="3") {
+                    $("#record").append("<li style='margin: 10px 0;'>"+data.msg_from_name+"：<audio src='"+Public_address+"uploads/"+data.message+"' controls=''></li>");
+                }else if (data.msg_type=="2"){
+                    $("#record").append("<li style='margin: 10px 0;'>"+data.msg_from_name+"：<img src='"+Public_address+"uploads/"+data.message+"' width='100px' class='img_yl'/></li>");
+                }else{
+                    $("#record").append("<li style='margin: 10px 0;'>"+data.msg_from_name+"：<span>"+data.message +"</span></li>");
+                }
+                $("#record").animate({scrollTop:"3000px"}, 50);
+            }
+        }
+        // 录制
+        $(document).on('click','#start',function() {
+            $(this).css("color","#addc9d");
+            var audio = document.querySelectorAll('audio');
+            for(var i = 0; i < audio.length; i++){
+                if(!audio[i].paused){
+                    audio[i].pause();
+                }
+            }
+            $('#js_record_time').html("录音时间：0秒");
+            //开始录音时计时器开始计时
+            timer = setInterval(function(){
+                duration++;
+                $('#js_record_time').html("录音时间："+duration+"秒");
+                return duration
+            },1000);
+            $(".btn_s").css("visibility","visible");
+            recorder.start();
+        });
+        // 发送
+        $(document).on('click','#stop',function() {
+            clearInterval(timer);//清除录音计时器
+            $("#start").css("color","#000");
+            $(".btn_s").css("visibility","hidden");
+            $('#js_record_time').html('');
+            recorder.stop();
+            recorder.getBlob(function(blob){
+                var audio = document.createElement('audio');
+                audio.src = URL.createObjectURL(blob);
+                audio.controls = true;
+                $("#record").append("<li class='name'><audio src='"+URL.createObjectURL(blob)+"' controls=''></audio>：我</li>");
+                var formData = new FormData();
+                formData.append('chatFile',blob, Date.parse(new Date())+".mp3");
+                formData.append('msg_type',3);
+                formData.append('msg_to_uid',$(".message_left .on").attr('data-name'));
+                formData.append('msg_from_headimage',sessionStorage.getItem("imageHead"));
+                formData.append('msg_from_name',sessionStorage.getItem("name"));
+                formData.append('msg_tiem',getNowFormatDate());
+                formData.append('msg_from_uid',sessionStorage.getItem("s_uid"));
+                formData.append('msg_from_tel',sessionStorage.getItem("uname"));
+                formData.append('msg_to_tel',$(".message_left .on").attr('data-tel'));
+                formData.append('voice_time',String(duration*1000));
+
+                var s_token = sessionStorage.getItem("s_token");
+                $.ajax({
+                    type: 'POST',
+                    url: Public_address+"fire/user/chat"+'?s_token='+s_token,
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    cache: false,
+                    success: function (json){
+                        duration = 0;
+                        $("#record").animate({scrollTop:"3000px"}, 50);
+                    }, error: function (jqXHR, textStatus, errorThrown){
+                        alert('Error! '+ textStatus + ' - ' + errorThrown + '\n\n' + jqXHR.responseText);
+                    }
+                });
+            });
+        });
+        // 取消
+        $(document).on('click','#cancel',function() {
+            clearInterval(timer);//清除录音计时器
+            duration = 0;
+            $("#start").css("color","#000");
+            $(".btn_s").css("visibility","hidden");
+            $('#js_record_time').html('');
+            recorder.stop();
+        });
+        // 发送图片
+        $(document).on('change','#photoName2',function() {
+            var file = document.getElementById("photoName2");
+            var blob = file.files[0]; // 获取的图片文件
+            console.log('1');
+            if(window.createObjectURL != undefined){
+                $("#record").append("<li class='name'><img src='"+window.createObjectURL(blob)+"' width='100px' class='img_yl'/></audio>：我</li>");
+            }else if(window.URL != undefined){
+                $("#record").append("<li class='name'><img src='"+window.URL.createObjectURL(blob)+"' width='100px' class='img_yl'/></audio>：我</li>");
+            }else if(window.webkitUrl != undefined){
+                $("#record").append("<li class='name'><img src='"+window.webkitUrl.createObjectURL(blob)+"' width='100px' class='img_yl'/></audio>：我</li>");
+            }
+            var formData = new FormData();
+            formData.append('chatFile',blob);
+            formData.append('msg_type',2);
+            formData.append('msg_to_uid',$(".message_left .on").attr('data-name'));
+            formData.append('msg_from_headimage',sessionStorage.getItem("imageHead"));
+            formData.append('msg_from_name',sessionStorage.getItem("name"));
+            formData.append('msg_tiem',getNowFormatDate());
+            formData.append('msg_from_uid',sessionStorage.getItem("s_uid"));
+            formData.append('msg_from_tel',sessionStorage.getItem("uname"));
+            formData.append('msg_to_tel',$(".message_left .on").attr('data-tel'));
+            formData.append('voice_time','');
+            var s_token = sessionStorage.getItem("s_token");
+            $.ajax({
+                type: 'POST',
+                url: Public_address+"fire/user/chat"+'?s_token='+s_token,
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                cache: false,
+                success: function (json){
+                    $("#record").animate({scrollTop:"3000px"}, 50);
+                    //因为事件是change,传图片结束以后把#photoName2清空掉
+                    $('#photoName2').val('');
+                }, error: function (jqXHR, textStatus, errorThrown){
+                    alert('Error! '+ textStatus + ' - ' + errorThrown + '\n\n' + jqXHR.responseText);
+                }
+            });
+        });
+        // 预览图片
+        $(document).on( "click", ".img_yl",function(event) {
+            var src=$(this).attr("src");
+            var $h1="<img src=\"" +src+ "\" style='height:100%'>";
+            layer.open({
+                skin: 'layui-layer-molv',
+                title:'图片预览',
+                type: 1,
+                area: ['570px', '480px;'],
+                shadeClose: true,
+                btnAlign: 'c',
+                tipsMore : true,
+                zIndex : layer.zIndex,
+                content:$h1
+            });
+        });
+        // 回车键发送事件
+        $(document).keypress(function(e) {
+            if(e.which == 13) {
+                e.cancelBubble=true;
+                e.preventDefault();
+                e.stopPropagation();
+                var content=$("#content").val();
+                if (content!='') {
+                    sendAjax({
+                        "url":"fire/user/chat",
+                        "data":{"msg_to_uid":sessionStorage.getItem("message_name"),"message":content,"msg_type":1,"msg_from_headimage":sessionStorage.getItem("imageHead"),"msg_from_name":sessionStorage.getItem("name"),"msg_tiem":getNowFormatDate(),"msg_from_uid":sessionStorage.getItem("s_uid"),"msg_from_tel":sessionStorage.getItem("uname"),"msg_to_tel":$(".message_left .on").attr('data-tel'),"voice_time":''},"callback":function(data){
+                            if (data.code=='s_ok') {
+                                $("#record").append("<li class='name'><span>"+content+"</span>：我</li>");
+                                $("#record").animate({scrollTop:"3000px"}, 50);
+                                if (data.var==0) {
+                                    $("#record").append("<p style='text-align:center;font-size: 12px;'>对方不在线</p>");
+                                }
+                            }
+                            $("#content").val('');
+                        }
+                    })
+                }
+            }
+        });
+        $(document).on("click",".message_left p",function(){
+            var index = $(this).index();
+            $(this).addClass("on").siblings().removeClass("on");
+            var this_title=$(this).html();
+            layer.title('与'+this_title+'聊天中',0);
+            // message($(this).attr('data-name'),this_title);
+            var content=$("#content").val();
+            if (content!='') {
+                sendAjax({
+                    "url":"fire/user/chat",
+                    "data":{"msg_to_uid":$(this).attr('data-name'),"message":content,"msg_type":1},"callback":function(data){
+                        if (data.code=='s_ok') {
+                            $("#record").append("<li class='name'><span>"+content+"</span>：我</li>");
+                            $("#record").animate({scrollTop:"3000px"}, 50);
+                            if (data.var==0) {
+                                $("#record").append("<p style='text-align:center;font-size: 12px;'>对方不在线</p>");
+                            }
+                        }
+                        $("#content").val('');
+                    }
+                })
+            }
+        });
+        function message(name,phone,tel) {
+            if (isFire) {
+                isFire=false;
+                start = document.querySelector('#start');
+                stop = document.querySelector('#stop');
+                recorder = new Recorder({
+                    sampleRate: 44100, //采样频率，默认为44100Hz(标准MP3采样率)
+                    bitRate: 128, //比特率，默认为128kbps(标准MP3质量)
+                    success: function(){ //成功回调函数
+                        // start.disabled = false;
+                    },
+                    error: function(msg){ //失败回调函数
+                        alert(msg);
+                    },
+                    fix: function(msg){ //不支持H5录音回调函数
+                        alert(msg);
+                    }
+                });
+            }
+            sessionStorage.setItem("message_name",name);
+            if($.inArray(name, message_arr)<0){
+                if($(".message_left").length==0){
+                    layer.confirm(`<div class='message_left'></div>
+            <div class='message_right'>
+               <ul id='record'></ul>
+               <ul class='msg_type'>
+                  <li id='picture' οnclick="$('#photoName2').click()"><i class='icon-picture'></i></li>
+                  <li style='display:none'><input type="file" id="photoName2" accept="image/png,image/jpg,image/gif,image/JPEG"/></li>
+
+                  <li id='start' title='录音'><i class='icon-play'></i></li>
+                  <li><span id='js_record_time'></span></li>
+                  <li class='btn_s' id='stop' title='发送'>发送</li>
+                  <li class='btn_s btn_s2' id='cancel' title='取消'>取消</li>
+               </ul>
+               <textarea id='content' maxlength='1024'></textarea>
+            </div>`, {
+                        btn: ['发送','取消'],
+                        skin: 'layui-layer-molv',
+                        btnAlign: 'c',
+                        shade:0,
+                        area: ['700px','500px'],
+                        zIndex : layer.zIndex,
+                        cancel: function(){message_arr=[];}
+                    }, function(){
+                        var content=$("#content").val();
+                        if (content!='') {
+                            sendAjax({
+                                "url":"fire/user/chat",
+                                "data":{"msg_to_uid":sessionStorage.getItem("message_name"),"message":content,"msg_type":1,"msg_from_headimage":sessionStorage.getItem("imageHead"),"msg_from_name":sessionStorage.getItem("name"),"msg_tiem":getNowFormatDate(),"msg_from_uid":sessionStorage.getItem("s_uid"),"msg_from_tel":sessionStorage.getItem("uname"),"msg_to_tel":$(".message_left .on").attr('data-tel'),"voice_time":''},"callback":function(data){
+                                    if (data.code=='s_ok') {
+                                        $("#record").append("<li class='name'><span>"+content+"</span>：我</li>");
+                                        $("#record").animate({scrollTop:"3000px"}, 50);
+                                        if (data.var==0) {
+                                            $("#record").append("<p style='text-align:center;font-size: 12px;'>对方不在线</p>");
+                                        }
+                                    }
+                                    $("#content").val('');
+                                }
+                            })
+                        }
+                    }, function(){
+                        message_arr=[];
+                    });
+                };
+                $(".message_left p").removeClass("on");
+                $(".message_left").append("<p class='on' data-name="+name+" data-tel="+tel+">"+phone+"</p>");
+                layer.title('与'+phone+'聊天中',0);$(".message_left").animate({scrollTop:"3000px"}, 50);
+                $("#record").html("");
+                findChatngo(name,tel);
+
+                // 聊天记录
+                function findChatngo(uid,tel){
+                    sendAjax({
+                        "url":"fire/user/getUserChatRecord",
+                        "data":{"uid":uid},"callback":function(data){
+                            if (data.code=="s_ok") {
+                                var result=data.var;
+                                for (var i = 0; i < result.length; i++) {
+                                    if (tel==result[i].msg_to_tel) {
+                                        if (result[i].msg_type=="3") {
+                                            $("#record").append("<li  class='name'><audio src='"+Public_address+"uploads/"+result[i].message+"' controls=''></audio>：我</li>");
+                                        }else if (result[i].msg_type=="2"){
+                                            $("#record").append("<li  class='name'><img src='"+Public_address+"uploads/"+result[i].message+"' width='100px' class='img_yl'/>：我</li>");
+                                        }else{
+                                            $("#record").append("<li  class='name'><span>"+result[i].message
+                                                +"</span>：我</li>");
+                                        }
+                                    }else{
+                                        if (result[i].msg_type=="3") {
+                                            $("#record").append("<li style='margin: 10px 0;'>"+result[i].msg_from_name+"：<audio src='"+Public_address+"uploads/"+result[i].message+"' controls=''></li>");
+                                        }else if (result[i].msg_type=="2"){
+                                            $("#record").append("<li style='margin: 10px 0;'>"+result[i].msg_from_name+"：<img src='"+Public_address+"uploads/"+result[i].message+"' width='100px' class='img_yl'/></li>");
+                                        }else{
+                                            $("#record").append("<li style='margin: 10px 0;'>"+result[i].msg_from_name+"：<span>"+result[i].message
+                                                +"</span></li>");
+                                        }
+                                    }
+                                }
+                                $("#record").animate({scrollTop:"3000px"}, 50);
+                            }
+                        },
+                        error:function(e){
+                            layer.msg("错误！！");
+                        }
+                    });
+                };
+            }else{
+                $(".message_left p").removeClass("on");
+                var leftp=$(".message_left p");
+                for (var i = 0; i < leftp.length; i++) {
+                    if($(leftp[i]).attr("data-name")==name){
+                        $(leftp[i]).addClass("on");
+                    }
+                }
+                layer.title(phone,0);
+            }
+            $(".layui-layer-content").css({"min-height":"419px","overflow":"hidden"});
+                message_arr.push(name);
+        };
+    </script>
+</head>
+<body>
+
+</body>
+</html>

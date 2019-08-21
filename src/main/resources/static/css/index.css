@@ -1,0 +1,41 @@
+.allDiv{
+    width: 1200px;
+    height: 628px;
+    background-color: cadetblue;
+    margin:0 auto;
+    margin-top: 3px;
+}
+.allDiv_left,.allDiv_right,.allDiv_center {
+    display: inline-block;
+    margin: 0;
+}
+.allDiv_left{
+    width: 345px;
+    height: 628px;
+    background-color: red;
+}
+.allDiv_center{
+    width: 500px;
+    height: 628px;
+    background-color: black;
+}
+.allDiv_right{
+    width: 345px;
+    height: 628px;
+    background-color: aqua;
+}
+#allDiv_left_top {
+    width: 345px;
+    height: 209px;
+    background-color: aliceblue;
+}
+#allDiv_left_mibble {
+    width: 345px;
+    height: 210px;
+    background-color: pink;
+}
+#allDiv_left_bottom {
+    width: 345px;
+    height: 209px;
+    background-color: purple;
+}

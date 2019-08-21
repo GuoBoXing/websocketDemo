@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/js/jquery.js"></script>
+    <script>
+        function refresh() {
+            var socket;
+            var rews;
+            if (typeof WebSocket == "undefined") {
+                console.log("您的浏览器不支持websocket")
+            } else {
+                console.log("您的浏览器支持websocket")
+                // 实现化Websocket对象，指定要连接打的服务器的端口和地址，建立连接
+                // 等同于websocket = new WebSoket（"ws://localhost:8083/checkcentersys/websocket/20"）
+//            socket = new WebSocket(("${basePath}socket/${cid}".replace("http","ws")));
+                socket = new WebSocket(("ws://localhost:8083/websoket/20"));
+                // 打开事件
+                socket.onopen = function () {
+                    console.log("socket 已经打开");
+                    heatCheck.start();
+                };
+
+                // 获得消息事件
+                socket.onmessage = function (msg) {
+                    console.log(msg.data);
+                    heatCheck.reset();
+                    // 发现消息进入   开始处理前端触发逻辑
+                };
+
+                // 关闭事件
+                socket.onclose = function (event) {
+                    console.log("socket已经关闭");
+                    if (event.code != 4500) {
+                        // 4500为服务端再打开多tab的时候主动关闭返回的编码
+                        reconnect();
+                    }
+                };
+                // 发生了错误
+                socket.onerror = function (event) {
+                    alert("socketf阿生错误");
+                    // 此时可以尝试刷新页面
+                };
+            }
+        }
+        var heatCheck = {
+            timeout: 60000,
+            timeoutObj:null,
+            reset: function () {
+                clearInterval(this.timeoutObj)
+                this.start();
+            },
+            start: function () {
+                this.timeoutObj = setInterval(function () {
+                    if(websocket.readyState == 1){
+                        websocket.send("HeartBeat")
+                    }
+                },this.timeout)
+            }
+        }
+    </script>
+</head>
+
+
+
+<body>
+<div>
+    <button onclick="refresh()">刷新</button>
+</div>
+
+</body>
+</html>
